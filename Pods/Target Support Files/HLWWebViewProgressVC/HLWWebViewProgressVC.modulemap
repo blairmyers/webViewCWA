@@ -1,0 +1,6 @@
+framework module HLWWebViewProgressVC {
+  umbrella header "HLWWebViewProgressVC-umbrella.h"
+
+  export *
+  module * { export * }
+}

@@ -1,0 +1,28 @@
+PODS:
+  - BTNavigationDropdownMenu (0.5)
+  - HLWWebViewProgressVC (0.0.1)
+  - KAWebBrowser (0.3.0)
+  - SmartWKWebView (0.1.1)
+
+DEPENDENCIES:
+  - BTNavigationDropdownMenu
+  - HLWWebViewProgressVC
+  - KAWebBrowser
+  - SmartWKWebView
+
+SPEC REPOS:
+  https://github.com/cocoapods/specs.git:
+    - BTNavigationDropdownMenu
+    - HLWWebViewProgressVC
+    - KAWebBrowser
+    - SmartWKWebView
+
+SPEC CHECKSUMS:
+  BTNavigationDropdownMenu: ba3a26fdb6a56c4721c31df8a0875106c259663a
+  HLWWebViewProgressVC: 55fa428b2be8855ae36c7635c772d8dd840fb3b7
+  KAWebBrowser: b20c6aa2c94ce8341abdacc02987741ccb443b3d
+  SmartWKWebView: 1eecc8f0951e7f34ca4455485aa9e7594b7a6952
+
+PODFILE CHECKSUM: db010baea5fbace84ca71ea7f23e13cb058097f9
+
+COCOAPODS: 1.5.3

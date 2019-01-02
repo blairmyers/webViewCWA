@@ -11,30 +11,26 @@ import WebKit
 import MessageUI
 import BTNavigationDropdownMenu
 
-class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigationDelegate, UIWebViewDelegate {
+class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigationDelegate, WKUIDelegate, UIWebViewDelegate {
     
-    // Keeps track of navigation history for forward/back options
     var navigationTracker : Int = 0
-    
-    // webview wrapper that CWA is contained in
     var webView : WKWebView!
-    
-    // Array to keep track of webviews just for reference sake
     var webViewArray = [UIView()]
-    
-    // Keeps track of the current webview in front for reference sake
     var currentView : UIView!
+    var contentView: UIView!
+    var contents = ""
     
-    var second = SecondViewController()
+    var currentURL : String = ""
     
-    var tabBar = TabBarController()
+    let preferences = WKPreferences()
     
     @IBOutlet weak var backButton: UIBarButtonItem!
     
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
+    var loadCounter = 0
     
     // Options for dropdown menu list
-    let items = ["Refresh", "Help", "Email", "Logout", "Transactions", "Trips"]
+    let items = ["Refresh", "Help", "Email", "Logout", "Login", "Transactions", "Trips"]
     
     // Implement behavior for back button
     @IBAction func goBack(_ sender: Any) {
@@ -45,67 +41,46 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigatio
     override func loadView() {
         self.view = webView
         let config = WKWebViewConfiguration()
+        preferences.javaScriptCanOpenWindowsAutomatically = true
+        preferences.javaScriptEnabled = true
+        config.preferences = preferences
         webView = WKWebView(frame: .zero, configuration: config)
         webView.uiDelegate = self
         webView.navigationDelegate = self
         view = webView
+        
+        
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         initializeSwipers()
-        initializeTaps()
         initializeMenu()
+        modifyGestureRecognizers()
         
-        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        if let path = Bundle.main.path(forResource: "Tap", ofType: "js") {
+            do {
+                contents = try String(contentsOfFile: path)
+                print(contents)
+            } catch {
+                print("catch")
+            }
+        } else {
+            print("error")
+        }
+        
+        //webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
         //activityIndicator.startAnimating()
         //activityIndicator.hidesWhenStopped = true
         
-        self.webView.load(NSURLRequest(url: URL(string: "https://www15.swalifeqa.com/PortalWeb/cwa.jsp?test=test")!) as URLRequest)
+        self.webView.load(URLRequest(url: URL(string: "https://www15.swalifeqa.com/PortalWeb/cwa.jsp?test=test")!) as URLRequest)
         
     }
     
     func webViewDidFinishLoad(_ webView: UIWebView) {
         activityIndicator.stopAnimating()
-    }
-    
-    
-    
-    //MARK: Functions
-    
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping(WKNavigationActionPolicy) -> Void) {
-        
-        if let urlString = navigationAction.request.url?.absoluteString {
-            
-            let urlSize = urlString.count
-            var cwaPage : String = ""
-            var startIndex : String.Index = urlString.index(urlString.startIndex, offsetBy: 1)
-            
-            if urlSize > 40 {
-                startIndex = urlString.index(urlString.startIndex, offsetBy: 41)
-            }
-            let endIndex : String.Index
-            
-            if urlString.suffix(2) == "do" {
-                endIndex = urlString.index(urlString.startIndex, offsetBy: urlSize - 4)
-                cwaPage = String(urlString[startIndex...endIndex])
-                navigationTracker += 1
-            }
-            else if urlString.suffix(3) == "do#" || urlString.suffix(3) == "do?" {
-                endIndex = urlString.index(urlString.startIndex, offsetBy: urlString.count - 5)
-                cwaPage = String(urlString[startIndex...endIndex])
-                navigationTracker += 1
-            }
-            
-            if cwaPage == "login" {
-                //backButton.isEnabled = true
-                webView.evaluateJavaScript("window.scrollTo(0,0)", completionHandler: nil)
-                webView.scrollView.zoomScale = 0.60
-            }
-        }
-        decisionHandler(.allow)
     }
     
     func initializeMenu() {
@@ -139,16 +114,25 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigatio
             }
         // Logout
         case 3:
+            if webViewArray.count > 1 {
+                currentView.removeFromSuperview()
+                webViewArray.removeLast()
+            }
             let logURL = URL(string: "https://www15.swalifeqa.com/csswa/ea/plt/endSession.jsp")
             let logRequest = URLRequest(url: logURL!)
             self.webView.load(logRequest)
-        // Transactions
+        // Login
         case 4:
+            let loginURL = URL(string: "https://www15.swalifeqa.com/PortalWeb/cwa.jsp?test=test")
+            let loginRequest = URLRequest(url: loginURL!)
+            self.webView.load(loginRequest)
+        // Transactions
+        case 5:
             let tranURL = URL(string: "https://www15.swalifeqa.com/csswa/ea/plt/getCrewMemberTransactionReport.do")
             let tranRequest = URLRequest(url: tranURL!)
             self.webView.load(tranRequest)
         // Trips
-        case 5:
+        case 6:
             let tripURL = URL(string: "https://www15.swalifeqa.com/csswa/ea/plt/crewMemberSearch.do?popup=true&searchID=43209&searchFor=accessCrewBoard&searchName=&searchBase=&searchPosition=")
             let tripRequest = URLRequest(url: tripURL!)
             self.webView.load(tripRequest)
@@ -172,7 +156,7 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigatio
             navigationTracker = 0
         }
         else {
-            //backButton.isEnabled = false
+            backButton.isEnabled = false
         }
     }
     
@@ -182,11 +166,11 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigatio
     }
     
     func initializeSwipers() {
-        _ = initializeSwipeGestures(direction: UISwipeGestureRecognizerDirection.right)
-        _ = initializeSwipeGestures(direction: UISwipeGestureRecognizerDirection.left)
+        _ = initializeSwipeGestures(direction: UISwipeGestureRecognizer.Direction.right)
+        _ = initializeSwipeGestures(direction: UISwipeGestureRecognizer.Direction.left)
     }
     
-    func initializeSwipeGestures(direction: UISwipeGestureRecognizerDirection) -> UISwipeGestureRecognizer {
+    func initializeSwipeGestures(direction: UISwipeGestureRecognizer.Direction) -> UISwipeGestureRecognizer {
         
         let swiper = UISwipeGestureRecognizer(target: self, action: #selector(self.respondToSwipeGesture))
         swiper.direction = direction
@@ -199,9 +183,9 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigatio
             
             switch swipeGesture.direction {
                 
-            case UISwipeGestureRecognizerDirection.right:
+            case UISwipeGestureRecognizer.Direction.right:
                 navigationHandler()
-            case UISwipeGestureRecognizerDirection.left:
+            case UISwipeGestureRecognizer.Direction.left:
                 if self.webView.canGoForward {
                     self.webView.goForward()
                     navigationTracker += 1
@@ -212,59 +196,124 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate, WKNavigatio
         }
     }
     
-    func initializeTaps() {
-        let quadTap = initializeTapGestures(toFailGestureRecognizer: nil, numberOfTaps: 4)
-        let tripleTap = initializeTapGestures(toFailGestureRecognizer: quadTap, numberOfTaps: 3)
-        let doubleTap = initializeTapGestures(toFailGestureRecognizer: tripleTap, numberOfTaps: 2)
-        _ = initializeTapGestures(toFailGestureRecognizer: doubleTap, numberOfTaps: 1)
+    func modifyGestureRecognizers() {
+        let tripleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap(gesture:)))
+        tripleTapGesture.numberOfTouchesRequired = 1
+        tripleTapGesture.numberOfTapsRequired = 3
+        let quadTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleQuadTap(gesture:)))
+        quadTapGesture.numberOfTouchesRequired = 1
+        quadTapGesture.numberOfTapsRequired = 4
+        
+        self.webView.addGestureRecognizer(tripleTapGesture)
+        self.webView.addGestureRecognizer(quadTapGesture)
+        
+        var count = 0
+        var views = self.webView.subviews
+        while !views.isEmpty {
+            
+            count += 1
+            let v = views.removeFirst()
+            if let gestures = v.gestureRecognizers {
+                for g in gestures {
+                    if let tapGesture = g as? UITapGestureRecognizer {
+                        if tapGesture.numberOfTapsRequired == 2 && tapGesture.numberOfTouchesRequired == 1 {
+                            tapGesture.removeTarget(nil, action: nil)
+                            tapGesture.addTarget(self, action: #selector(handleDoubleTap(gesture:)))
+                            tapGesture.require(toFail: tripleTapGesture)
+                            contentView = v
+                        }
+                    }
+                }
+            }
+            views += v.subviews
+        }
+        if contentView == nil {
+            fatalError("Cannot continue without contentView.")
+        }
+        print(count)
     }
     
-    func initializeTapGestures(toFailGestureRecognizer: UITapGestureRecognizer?, numberOfTaps: Int) -> UITapGestureRecognizer {
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        let requestedURL = navigationAction.request.url
         
-        let tapper = UITapGestureRecognizer(target: self, action: #selector(tapAction))
-        tapper.delegate = self
-        tapper.numberOfTapsRequired = numberOfTaps
         
-        if numberOfTaps < 4 {
-            tapper.require(toFail: toFailGestureRecognizer!)
+        if navigationAction.navigationType == .linkActivated {
+            print("OK")
+            modifyGestureRecognizers()
+            if let path = Bundle.main.path(forResource: "Tap", ofType: "js") {
+                do {
+                    contents = try String(contentsOfFile: path)
+                    print(contents)
+                } catch {
+                    print("catch")
+                }
+            } else {
+                print("error")
+            }
+            if requestedURL?.absoluteString.contains("doubleclick.net") == true {
+                UIApplication.shared.open(requestedURL!, options: [:], completionHandler: nil)
+            }
         }
-        
-        webView.addGestureRecognizer(tapper)
-        return tapper
+        decisionHandler(.allow)
     }
     
-    @objc func tapAction(sender: UITapGestureRecognizer) -> Void {
-        
-        //let zoomScale = webView.scrollView.zoomScale
-        //let contentOffset = webView.scrollView.contentOffset
-        //let coordinates = sender.location(in: self.view)
-        
-        if sender.numberOfTapsRequired == 1 {
-        }
-        else if sender.numberOfTapsRequired == 2 {
-        }
-        else if sender.numberOfTapsRequired == 3 {
-        }
-        else if sender.numberOfTapsRequired == 4 {
+    @objc func handleDoubleTap(gesture: UITapGestureRecognizer) {
+        if gesture.state == .ended {
+            print("double click")
+            let tapPoint = tapPointFor(gesture: gesture)
+            let script = "performDoubleClickAtPoint(\(tapPoint.x), \(tapPoint.y));"
+            self.webView.evaluateJavaScript(contents, completionHandler: nil)
+            self.webView.evaluateJavaScript(script, completionHandler: nil)
         }
     }
     
-}
-
-extension ViewController: WKUIDelegate {
-    
-    public func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        
-        if let urlString = navigationAction.request.url?.absoluteString {
+    @objc func handleTripleTap(gesture: UITapGestureRecognizer) {
+        if gesture.state == .ended {
+            let script = "shiftToTopLeft();"
+            self.webView.evaluateJavaScript(contents, completionHandler: nil)
+            self.webView.evaluateJavaScript(script, completionHandler: nil)
         }
-        navigationTracker = 0
+    }
+    
+    @objc func handleQuadTap(gesture: UITapGestureRecognizer) {
+        if gesture.state == .ended {
+            let tapPoint = tapPointFor(gesture: gesture)
+            let script = "performCommandClickAtPoint(\(tapPoint.x), \(tapPoint.y));"
+            self.webView.evaluateJavaScript(script, completionHandler: nil)
+        }
+    }
+    
+    func tapPointFor(gesture: UITapGestureRecognizer) -> CGPoint {
+        var tapPoint = gesture.location(in: contentView)
+        tapPoint.x = tapPoint.x.rounded()
+        tapPoint.y = tapPoint.y.rounded()
+        return tapPoint
+    }
+    
+    
+    
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        
         let newWebView = WKWebView(frame: self.webView.frame, configuration: configuration)
-        view.addSubview(newWebView)
-        //backButton.isEnabled = true
-        webViewArray.append(newWebView)
-        currentView = newWebView
         
-        second.view = newWebView
+        func noNewTab(alert: UIAlertAction!) {
+            view.addSubview(newWebView)
+            navigationTracker = 0
+            backButton.isEnabled = true
+            webViewArray.append(newWebView)
+            currentView = newWebView
+        }
+        
+        func newTab(alert: UIAlertAction!) {
+            view.addSubview(newWebView)
+        }
+        
+        let alertController = UIAlertController(title: "Open in new tab?", message: "", preferredStyle: UIAlertController.Style.alert)
+        alertController.addAction(UIAlertAction(title: "Yes", style: UIAlertAction.Style.default, handler: newTab))
+        alertController.addAction(UIAlertAction(title: "No", style: UIAlertAction.Style.default, handler: noNewTab))
+        self.present(alertController, animated: true, completion: nil)
         return newWebView
     }
 }
+
+
